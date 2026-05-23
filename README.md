@@ -1,8 +1,6 @@
 # CHROMATIC SORTS
 
-```
-spectral algorithm theater
-```
+
 
 ---
 

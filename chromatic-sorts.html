@@ -1,0 +1,1141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CHROMATIC SORTS</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@300;500;700&display=swap" rel="stylesheet">
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+html, body { width:100%; height:100%; overflow:hidden; background:#020208; }
+body { font-family:'Share Tech Mono', monospace; color:#8899aa; }
+
+canvas { display:block; position:fixed; inset:0; }
+
+/* ——— STATS OVERLAY ——— */
+#stats {
+  position:fixed; top:18px; left:22px;
+  font-size:10px; letter-spacing:2px; line-height:2;
+  color:rgba(140,160,200,0.45);
+  pointer-events:none; z-index:10;
+}
+
+/* ——— STATUS BADGE ——— */
+#status {
+  position:fixed; bottom:22px; left:50%; transform:translateX(-50%);
+  font-family:'Rajdhani',sans-serif; font-size:11px; letter-spacing:9px;
+  color:rgba(140,180,230,0.35); pointer-events:none; z-index:10;
+  transition:color 0.6s, letter-spacing 0.6s;
+  text-transform:uppercase;
+}
+#status.active { color:rgba(160,210,255,0.55); letter-spacing:12px; }
+
+/* ——— PANEL TAB ——— */
+#tab {
+  position:fixed; right:0; top:50%; transform:translateY(-50%);
+  width:22px; height:90px; z-index:110;
+  background:rgba(8,10,20,0.92);
+  border:1px solid rgba(80,110,180,0.28); border-right:none;
+  border-radius:5px 0 0 5px;
+  cursor:pointer; user-select:none;
+  display:flex; align-items:center; justify-content:center;
+  writing-mode:vertical-rl;
+  font-size:8px; letter-spacing:3.5px;
+  color:rgba(120,150,200,0.5);
+  transition:color .25s, background .25s, width .25s;
+}
+#tab:hover { color:rgba(160,210,255,0.85); background:rgba(16,20,40,0.96); width:26px; }
+
+/* ——— CONTROL PANEL ——— */
+#panel {
+  position:fixed; right:-330px; top:0; width:310px; height:100vh;
+  background:rgba(5,6,14,0.97);
+  border-left:1px solid rgba(70,90,160,0.22);
+  transition:right .42s cubic-bezier(.25,.46,.45,.94);
+  overflow-y:auto; z-index:109;
+  padding:22px 18px 40px;
+  backdrop-filter:blur(12px);
+}
+#panel.open { right:0; }
+#panel::-webkit-scrollbar { width:3px; }
+#panel::-webkit-scrollbar-thumb { background:rgba(70,100,160,0.3); border-radius:2px; }
+
+.panel-title {
+  font-family:'Rajdhani',sans-serif; font-size:17px; font-weight:700;
+  letter-spacing:7px; color:#b8cce0;
+  text-align:center; padding-bottom:14px; margin-bottom:20px;
+  border-bottom:1px solid rgba(70,95,160,0.2);
+}
+.panel-subtitle {
+  font-size:8.5px; letter-spacing:4px; font-weight:300;
+  color:rgba(90,130,190,0.45); text-align:center;
+  margin-top:-14px; margin-bottom:18px;
+}
+
+.sec-title {
+  font-size:8px; letter-spacing:4.5px; text-transform:uppercase;
+  color:rgba(90,130,195,0.45); margin-bottom:11px; margin-top:2px;
+}
+
+.divider { height:1px; background:rgba(55,75,130,0.18); margin:15px 0; }
+
+/* ——— CONTROLS ——— */
+.ctrl { display:flex; justify-content:space-between; align-items:center; margin-bottom:9px; }
+.ctrl label { font-size:9.5px; letter-spacing:.8px; color:rgba(155,175,210,0.7); }
+.val { font-size:9.5px; color:rgba(120,195,255,0.8); min-width:38px; text-align:right; }
+
+input[type=range] {
+  -webkit-appearance:none; appearance:none;
+  width:100%; height:2px; margin-bottom:9px;
+  background:rgba(60,85,150,0.28); border-radius:1px; outline:none;
+}
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance:none; width:11px; height:11px;
+  border-radius:50%; background:#44aaff;
+  cursor:pointer; transition:background .2s, transform .15s;
+  box-shadow:0 0 6px rgba(60,160,255,0.5);
+}
+input[type=range]:hover::-webkit-slider-thumb { background:#88ccff; transform:scale(1.2); }
+
+select {
+  background:rgba(8,10,22,0.95); border:1px solid rgba(70,95,155,0.3);
+  color:rgba(130,175,220,0.85); font-family:'Share Tech Mono',monospace;
+  font-size:8.5px; padding:3px 7px; border-radius:2px;
+  cursor:pointer; outline:none; width:132px;
+  transition:border-color .2s;
+}
+select:focus { border-color:rgba(80,160,255,0.5); }
+
+input[type=number] {
+  background:rgba(8,10,22,0.95); border:1px solid rgba(70,95,155,0.3);
+  color:rgba(120,195,255,0.85); font-family:'Share Tech Mono',monospace;
+  font-size:11px; padding:3px 6px; width:68px;
+  border-radius:2px; outline:none; text-align:center;
+  transition:border-color .2s;
+}
+input[type=number]:focus { border-color:rgba(80,160,255,0.5); }
+
+.toggle-row { display:flex; justify-content:space-between; align-items:center; margin-bottom:9px; }
+.toggle-row label.lbl { font-size:9.5px; letter-spacing:.8px; color:rgba(155,175,210,0.7); }
+.toggle { position:relative; width:38px; height:19px; }
+.toggle input { opacity:0; width:0; height:0; position:absolute; }
+.tslider {
+  position:absolute; inset:0;
+  background:rgba(25,35,65,0.9); border:1px solid rgba(70,95,155,0.3);
+  border-radius:10px; cursor:pointer; transition:.25s;
+}
+.tslider:before {
+  content:''; position:absolute;
+  width:13px; height:13px; left:2px; top:2px;
+  background:rgba(90,120,170,0.6); border-radius:50%; transition:.25s;
+}
+.toggle input:checked + .tslider { background:rgba(15,50,100,0.9); border-color:rgba(70,155,255,0.45); }
+.toggle input:checked + .tslider:before { transform:translateX(19px); background:#44aaff; box-shadow:0 0 5px rgba(60,160,255,0.6); }
+
+.btn {
+  background:rgba(12,16,36,0.85); border:1px solid rgba(70,95,155,0.32);
+  color:rgba(130,175,220,0.8); font-family:'Share Tech Mono',monospace;
+  font-size:9px; letter-spacing:2px; padding:6px 11px;
+  cursor:pointer; border-radius:2px; transition:all .18s;
+  text-transform:uppercase;
+}
+.btn:hover { background:rgba(30,55,110,0.6); border-color:rgba(90,155,255,0.5); color:#aadeff; }
+.btn.accent { border-color:rgba(70,155,255,0.4); color:rgba(120,200,255,0.9); }
+.btn.wide { width:100%; padding:9px; font-size:10px; letter-spacing:4px; margin-bottom:8px; }
+.btn.tap { padding:6px 10px; font-size:8px; }
+
+.row { display:flex; gap:7px; align-items:center; margin-bottom:9px; }
+
+#currentInfo {
+  font-size:8px; letter-spacing:1.5px; line-height:2;
+  color:rgba(100,140,190,0.5);
+  border:1px solid rgba(55,80,140,0.18); border-radius:2px;
+  padding:8px 10px; margin-bottom:9px;
+}
+</style>
+</head>
+<body>
+
+<canvas id="c"></canvas>
+<div id="stats"></div>
+<div id="status">INITIALIZING</div>
+<div id="tab">CTRL</div>
+
+<div id="panel">
+  <div class="panel-title">CHROMATIC SORTS</div>
+  <div class="panel-subtitle">SPECTRAL ALGORITHM THEATER</div>
+
+  <div id="currentInfo">
+    ALG &nbsp;<span id="infoAlg">—</span><br>
+    KEY &nbsp;<span id="infoKey">—</span><br>
+    PAL &nbsp;<span id="infoPal">—</span>
+  </div>
+
+  <!-- PLAYBACK -->
+  <div class="sec-title">PLAYBACK</div>
+  <button class="btn wide" id="playBtn">⏸ PAUSE</button>
+
+  <div class="toggle-row">
+    <label class="lbl">BPM SYNC</label>
+    <label class="toggle"><input type="checkbox" id="bpmMode"><span class="tslider"></span></label>
+  </div>
+
+  <div id="bpmControls" style="display:none">
+    <div class="row">
+      <input type="number" id="bpmVal" value="120" min="40" max="300">
+      <button class="btn tap" id="tapBtn">TAP</button>
+    </div>
+    <div class="ctrl">
+      <label>STEPS / BEAT</label>
+      <select id="stepsPerBeat">
+        <option value="1">1</option><option value="2">2</option>
+        <option value="4" selected>4</option><option value="8">8</option>
+        <option value="16">16</option><option value="32">32</option>
+      </select>
+    </div>
+  </div>
+
+  <div id="speedControls">
+    <div class="ctrl"><label>SORT SPEED</label><span class="val" id="speedVal">14</span></div>
+    <input type="range" id="speed" min="1" max="250" value="14">
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- VISUAL -->
+  <div class="sec-title">VISUAL</div>
+
+  <div class="ctrl">
+    <label>COLUMNS</label>
+    <select id="colCount">
+      <option value="24">24</option><option value="32">32</option>
+      <option value="48">48</option><option value="64" selected>64</option>
+      <option value="80">80</option><option value="96">96</option>
+      <option value="128">128</option>
+    </select>
+  </div>
+
+  <div class="ctrl"><label>GLOW</label><span class="val" id="glowVal">55</span></div>
+  <input type="range" id="glow" min="0" max="120" value="55">
+
+  <div class="ctrl"><label>SHIMMER SPEED</label><span class="val" id="shimmerVal">0.40</span></div>
+  <input type="range" id="shimmer" min="0" max="100" value="40">
+
+  <div class="ctrl"><label>LERP SPEED</label><span class="val" id="lerpVal">0.08</span></div>
+  <input type="range" id="lerpSpeed" min="1" max="35" value="8">
+
+  <div class="ctrl"><label>BAR FILL</label><span class="val" id="fillVal">82%</span></div>
+  <input type="range" id="barFill" min="30" max="100" value="82">
+
+  <div class="ctrl"><label>BAR HEIGHT</label><span class="val" id="barHVal">80%</span></div>
+  <input type="range" id="barHeight" min="30" max="100" value="80">
+
+  <div class="toggle-row">
+    <label class="lbl">SHOW STATS</label>
+    <label class="toggle"><input type="checkbox" id="showStats" checked><span class="tslider"></span></label>
+  </div>
+  <div class="toggle-row">
+    <label class="lbl">SHOW LABELS</label>
+    <label class="toggle"><input type="checkbox" id="showLabels" checked><span class="tslider"></span></label>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- COLOR -->
+  <div class="sec-title">COLOR</div>
+
+  <div class="ctrl"><label>SATURATION BOOST</label><span class="val" id="satVal">100%</span></div>
+  <input type="range" id="satBoost" min="40" max="220" value="100">
+
+  <div class="ctrl"><label>BASE LIGHTNESS</label><span class="val" id="lightnessVal">50</span></div>
+  <input type="range" id="lightness" min="20" max="72" value="50">
+
+  <div class="ctrl"><label>LIGHTNESS RANGE</label><span class="val" id="lrangeVal">14</span></div>
+  <input type="range" id="lrange" min="0" max="30" value="14">
+
+  <div class="ctrl">
+    <label>PALETTE</label>
+    <select id="paletteTheme">
+      <option value="auto">AUTO CYCLE</option>
+      <option value="complementary">COMPLEMENTARY</option>
+      <option value="triadic">TRIADIC</option>
+      <option value="split">SPLIT COMP</option>
+      <option value="tetradic">TETRADIC</option>
+      <option value="analogous">ANALOGOUS</option>
+      <option value="monochromatic">MONOCHROMATIC</option>
+      <option value="cool">COOL SPECTRUM</option>
+      <option value="warm">WARM SPECTRUM</option>
+    </select>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- ALGORITHM -->
+  <div class="sec-title">ALGORITHM</div>
+
+  <div class="ctrl">
+    <label>ALGORITHM</label>
+    <select id="algorithm">
+      <option value="auto">AUTO CYCLE</option>
+      <option value="bubble">BUBBLE</option>
+      <option value="cocktail">COCKTAIL SHAKER</option>
+      <option value="insertion">INSERTION</option>
+      <option value="selection">SELECTION</option>
+      <option value="shell">SHELL</option>
+      <option value="gnome">GNOME</option>
+      <option value="comb">COMB</option>
+      <option value="quick">QUICKSORT</option>
+      <option value="heap">HEAP</option>
+      <option value="oddeven">ODD-EVEN</option>
+    </select>
+  </div>
+
+  <div class="ctrl">
+    <label>SORT KEY</label>
+    <select id="sortKey">
+      <option value="auto">AUTO CYCLE</option>
+      <option value="hue">HUE</option>
+      <option value="saturation">SATURATION</option>
+      <option value="lightness">LIGHTNESS</option>
+      <option value="red">RED CHANNEL</option>
+      <option value="green">GREEN CHANNEL</option>
+      <option value="blue">BLUE CHANNEL</option>
+      <option value="luminance">LUMINANCE</option>
+      <option value="warmth">WARMTH</option>
+    </select>
+  </div>
+
+  <div class="ctrl">
+    <label>SCRAMBLE</label>
+    <select id="scrambleStyle">
+      <option value="auto">AUTO</option>
+      <option value="random">RANDOM BURST</option>
+      <option value="reverse">REVERSE</option>
+      <option value="wave">SINE WAVE</option>
+      <option value="interleave">INTERLEAVE</option>
+      <option value="chunks">CHUNKS</option>
+      <option value="center">CENTER OUT</option>
+    </select>
+  </div>
+
+  <button class="btn wide accent" id="scrambleBtn" style="margin-top:6px">↺ SCRAMBLE NOW</button>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════
+//  CHROMATIC SORTS
+//  Continuously runs 10 sorting algorithms on color data
+//  sorted by 8 different properties across auto-cycling
+//  palette themes. Full instrument-panel controls.
+// ═══════════════════════════════════════════════════════
+
+const canvas = document.getElementById('c');
+const ctx    = canvas.getContext('2d');
+
+// ——— CONFIG ———
+const CFG = {
+  n:            64,
+  stepsPerSec:  14,
+  bpmMode:      false,
+  bpm:          120,
+  stepsPerBeat: 4,
+  glow:         55,
+  shimmerSpeed: 0.40,
+  lerpSpeed:    0.08,
+  barFill:      0.82,
+  barHeight:    0.80,
+  satBoost:     1.00,
+  baseLightness:50,
+  lightnessRange:14,
+  showStats:    true,
+  showLabels:   true,
+  algorithm:    'auto',
+  sortKey:      'auto',
+  paletteTheme: 'auto',
+  scrambleStyle:'auto',
+  paused:       false
+};
+
+// ——— STATE ———
+let elements   = [];
+let sortGen    = null;
+let phase      = 'init';
+let stats      = { comparisons:0, swaps:0 };
+let time       = 0;
+let stepTimer  = null;
+let nextTimer  = null;
+let tapTimes   = [];
+
+let currentAlgorithm = '';
+let currentSortKey   = '';
+let currentPalette   = '';
+
+// Shuffled queues so auto mode never repeats until all used
+let algoQueue  = [];
+let keyQueue   = [];
+
+const ALGO_NAMES = ['bubble','cocktail','insertion','selection','shell','gnome','comb','quick','heap','oddeven'];
+const KEY_NAMES  = ['hue','saturation','lightness','red','green','blue','luminance','warmth'];
+const PAL_NAMES  = ['complementary','triadic','split','tetradic','analogous','monochromatic','cool','warm'];
+
+const ALGO_DISPLAY = {
+  bubble:'BUBBLE SORT', cocktail:'COCKTAIL SHAKER', insertion:'INSERTION SORT',
+  selection:'SELECTION SORT', shell:'SHELL SORT', gnome:'GNOME SORT',
+  comb:'COMB SORT', quick:'QUICKSORT', heap:'HEAP SORT', oddeven:'ODD-EVEN SORT'
+};
+const KEY_DISPLAY = {
+  hue:'BY HUE', saturation:'BY SATURATION', lightness:'BY LIGHTNESS',
+  red:'BY RED', green:'BY GREEN', blue:'BY BLUE',
+  luminance:'BY LUMINANCE', warmth:'BY WARMTH'
+};
+
+// ——— UTILS ———
+function shuffle(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+function pickFromQueue(queue, all, override) {
+  if (override !== 'auto') return override;
+  if (queue.length === 0) queue.push(...shuffle([...all]));
+  return queue.shift();
+}
+
+// ——— HSL → RGB ———
+function hslToRgb(h, s, l) {
+  s /= 100; l /= 100;
+  const a = s * Math.min(l, 1 - l);
+  const f = n => {
+    const k = (n + h / 30) % 12;
+    return l - a * Math.max(-1, Math.min(k - 3, Math.min(9 - k, 1)));
+  };
+  return { r: f(0), g: f(8), b: f(4) };
+}
+
+// ——— SORT KEY ———
+function computeSortKey(el, key) {
+  switch (key) {
+    case 'hue':        return el.h / 360;
+    case 'saturation': return el.s / 100;
+    case 'lightness':  return el.l / 100;
+    case 'red':        return el.rgb.r;
+    case 'green':      return el.rgb.g;
+    case 'blue':       return el.rgb.b;
+    case 'luminance':  return 0.299 * el.rgb.r + 0.587 * el.rgb.g + 0.114 * el.rgb.b;
+    case 'warmth':     return (el.rgb.r - el.rgb.b) * 0.5 + 0.5;
+    default:           return el.h / 360;
+  }
+}
+
+// ——— PALETTE GENERATION ———
+function generatePalette(theme, n) {
+  const baseH = Math.random() * 360;
+  const L  = CFG.baseLightness;
+  const LR = CFG.lightnessRange;
+
+  let hueSource; // function(i) -> h
+  switch (theme) {
+    case 'complementary':
+      hueSource = i => {
+        const g = [baseH, (baseH + 180) % 360];
+        return (g[i % 2] + (Math.random() - 0.5) * 28 + 360) % 360;
+      };
+      break;
+    case 'triadic':
+      hueSource = i => {
+        const g = [baseH, (baseH + 120) % 360, (baseH + 240) % 360];
+        return (g[i % 3] + (Math.random() - 0.5) * 22 + 360) % 360;
+      };
+      break;
+    case 'split':
+      hueSource = i => {
+        const g = [baseH, (baseH + 150) % 360, (baseH + 210) % 360];
+        return (g[i % 3] + (Math.random() - 0.5) * 20 + 360) % 360;
+      };
+      break;
+    case 'tetradic':
+      hueSource = i => {
+        const g = [baseH, (baseH+90)%360, (baseH+180)%360, (baseH+270)%360];
+        return (g[i % 4] + (Math.random() - 0.5) * 18 + 360) % 360;
+      };
+      break;
+    case 'analogous':
+      hueSource = i => (baseH + (i / n - 0.5) * 70 + 360) % 360;
+      break;
+    case 'monochromatic':
+      hueSource = () => (baseH + (Math.random() - 0.5) * 8 + 360) % 360;
+      break;
+    case 'cool':
+      hueSource = () => 180 + Math.random() * 150; // cyan→blue→purple
+      break;
+    case 'warm':
+      hueSource = () => Math.random() < 0.55
+        ? Math.random() * 65                         // red/orange/yellow
+        : 300 + Math.random() * 60;                 // magenta/crimson
+      break;
+    default:
+      hueSource = i => (baseH + (i / n) * 360) % 360;
+  }
+
+  return Array.from({ length: n }, (_, i) => {
+    const h = hueSource(i);
+    const s = 62 + Math.random() * 36;
+    const l = L - LR + Math.random() * LR * 2;
+    const rgb = hslToRgb(h, s, Math.max(18, Math.min(78, l)));
+    return {
+      h, s,
+      l: Math.max(18, Math.min(78, l)),
+      rgb,
+      sortKey:       0,
+      currentX:      0,
+      targetX:       0,
+      shimmerOffset: Math.random() * Math.PI * 2,
+      compareFlash:  0,
+      swapFlash:     0
+    };
+  });
+}
+
+// ——— ELEMENT INIT / RECOLOR ———
+function barStep() { return canvas.width / CFG.n; }
+
+function updateTargetX() {
+  const step = barStep();
+  elements.forEach((el, i) => { el.targetX = i * step; });
+}
+
+function assignSortKeys() {
+  const key = pickFromQueue(keyQueue, KEY_NAMES, CFG.sortKey);
+  currentSortKey = key;
+  elements.forEach(el => { el.sortKey = computeSortKey(el, key); });
+}
+
+function createElements() {
+  const theme = CFG.paletteTheme === 'auto'
+    ? PAL_NAMES[Math.floor(Math.random() * PAL_NAMES.length)]
+    : CFG.paletteTheme;
+  currentPalette = theme;
+
+  elements = generatePalette(theme, CFG.n);
+  assignSortKeys();
+  shuffle(elements);
+  updateTargetX();
+  elements.forEach(el => { el.currentX = el.targetX; }); // snap on first load
+}
+
+function recolor() {
+  const theme = CFG.paletteTheme === 'auto'
+    ? PAL_NAMES[Math.floor(Math.random() * PAL_NAMES.length)]
+    : CFG.paletteTheme;
+  currentPalette = theme;
+  const fresh = generatePalette(theme, CFG.n);
+  elements.forEach((el, i) => {
+    el.h = fresh[i].h; el.s = fresh[i].s; el.l = fresh[i].l;
+    el.rgb = fresh[i].rgb;
+    el.shimmerOffset = Math.random() * Math.PI * 2;
+  });
+}
+
+// ═══════════════════════════════════════════════════════
+//  SORT ALGORITHM GENERATORS
+//  Each yields { type:'compare'|'swap', i, j }
+// ═══════════════════════════════════════════════════════
+
+function* bubbleSort(arr) {
+  for (let i = 0; i < arr.length; i++)
+    for (let j = 0; j < arr.length - i - 1; j++) {
+      yield { type:'compare', i:j, j:j+1 };
+      if (arr[j].sortKey > arr[j+1].sortKey) {
+        [arr[j], arr[j+1]] = [arr[j+1], arr[j]];
+        yield { type:'swap', i:j, j:j+1 };
+      }
+    }
+}
+
+function* cocktailSort(arr) {
+  let lo = 0, hi = arr.length - 1;
+  while (lo < hi) {
+    for (let j = lo; j < hi; j++) {
+      yield { type:'compare', i:j, j:j+1 };
+      if (arr[j].sortKey > arr[j+1].sortKey) {
+        [arr[j], arr[j+1]] = [arr[j+1], arr[j]];
+        yield { type:'swap', i:j, j:j+1 };
+      }
+    }
+    hi--;
+    for (let j = hi; j > lo; j--) {
+      yield { type:'compare', i:j-1, j:j };
+      if (arr[j-1].sortKey > arr[j].sortKey) {
+        [arr[j-1], arr[j]] = [arr[j], arr[j-1]];
+        yield { type:'swap', i:j-1, j:j };
+      }
+    }
+    lo++;
+  }
+}
+
+function* insertionSort(arr) {
+  for (let i = 1; i < arr.length; i++) {
+    let j = i;
+    while (j > 0) {
+      yield { type:'compare', i:j-1, j:j };
+      if (arr[j-1].sortKey > arr[j].sortKey) {
+        [arr[j-1], arr[j]] = [arr[j], arr[j-1]];
+        yield { type:'swap', i:j-1, j:j };
+        j--;
+      } else break;
+    }
+  }
+}
+
+function* selectionSort(arr) {
+  for (let i = 0; i < arr.length; i++) {
+    let minIdx = i;
+    for (let j = i + 1; j < arr.length; j++) {
+      yield { type:'compare', i:minIdx, j:j };
+      if (arr[j].sortKey < arr[minIdx].sortKey) minIdx = j;
+    }
+    if (minIdx !== i) {
+      [arr[i], arr[minIdx]] = [arr[minIdx], arr[i]];
+      yield { type:'swap', i:i, j:minIdx };
+    }
+  }
+}
+
+function* shellSort(arr) {
+  const gaps = [701, 301, 132, 57, 23, 10, 4, 1].filter(g => g < arr.length);
+  for (const gap of gaps)
+    for (let i = gap; i < arr.length; i++) {
+      let j = i;
+      while (j >= gap) {
+        yield { type:'compare', i:j - gap, j:j };
+        if (arr[j - gap].sortKey > arr[j].sortKey) {
+          [arr[j - gap], arr[j]] = [arr[j], arr[j - gap]];
+          yield { type:'swap', i:j - gap, j:j };
+          j -= gap;
+        } else break;
+      }
+    }
+}
+
+function* gnomeSort(arr) {
+  let i = 1;
+  while (i < arr.length) {
+    yield { type:'compare', i:i-1, j:i };
+    if (arr[i - 1].sortKey <= arr[i].sortKey) {
+      i++;
+    } else {
+      [arr[i - 1], arr[i]] = [arr[i], arr[i - 1]];
+      yield { type:'swap', i:i-1, j:i };
+      if (i > 1) i--; else i++;
+    }
+  }
+}
+
+function* combSort(arr) {
+  let gap = arr.length;
+  let sorted = false;
+  while (!sorted) {
+    gap = Math.max(1, Math.floor(gap / 1.3));
+    sorted = (gap === 1);
+    for (let i = 0; i + gap < arr.length; i++) {
+      yield { type:'compare', i:i, j:i + gap };
+      if (arr[i].sortKey > arr[i + gap].sortKey) {
+        [arr[i], arr[i + gap]] = [arr[i + gap], arr[i]];
+        yield { type:'swap', i:i, j:i + gap };
+        sorted = false;
+      }
+    }
+  }
+}
+
+function* quickSort(arr) {
+  const stack = [[0, arr.length - 1]];
+  while (stack.length) {
+    const [lo, hi] = stack.pop();
+    if (lo >= hi) continue;
+    const pivot = arr[hi].sortKey;
+    let p = lo;
+    for (let j = lo; j < hi; j++) {
+      yield { type:'compare', i:j, j:hi };
+      if (arr[j].sortKey <= pivot) {
+        [arr[p], arr[j]] = [arr[j], arr[p]];
+        yield { type:'swap', i:p, j:j };
+        p++;
+      }
+    }
+    [arr[p], arr[hi]] = [arr[hi], arr[p]];
+    yield { type:'swap', i:p, j:hi };
+    stack.push([lo, p - 1]);
+    stack.push([p + 1, hi]);
+  }
+}
+
+function* heapSort(arr) {
+  const n = arr.length;
+  function* heapify(sz, root) {
+    let largest = root;
+    const l = 2 * root + 1, r = 2 * root + 2;
+    if (l < sz) { yield { type:'compare', i:root, j:l }; if (arr[l].sortKey > arr[largest].sortKey) largest = l; }
+    if (r < sz) { yield { type:'compare', i:largest, j:r }; if (arr[r].sortKey > arr[largest].sortKey) largest = r; }
+    if (largest !== root) {
+      [arr[root], arr[largest]] = [arr[largest], arr[root]];
+      yield { type:'swap', i:root, j:largest };
+      yield* heapify(sz, largest);
+    }
+  }
+  for (let i = Math.floor(n / 2) - 1; i >= 0; i--) yield* heapify(n, i);
+  for (let i = n - 1; i > 0; i--) {
+    [arr[0], arr[i]] = [arr[i], arr[0]];
+    yield { type:'swap', i:0, j:i };
+    yield* heapify(i, 0);
+  }
+}
+
+function* oddEvenSort(arr) {
+  let sorted = false;
+  while (!sorted) {
+    sorted = true;
+    for (let i = 1; i < arr.length - 1; i += 2) {
+      yield { type:'compare', i:i, j:i+1 };
+      if (arr[i].sortKey > arr[i+1].sortKey) {
+        [arr[i], arr[i+1]] = [arr[i+1], arr[i]];
+        yield { type:'swap', i:i, j:i+1 };
+        sorted = false;
+      }
+    }
+    for (let i = 0; i < arr.length - 1; i += 2) {
+      yield { type:'compare', i:i, j:i+1 };
+      if (arr[i].sortKey > arr[i+1].sortKey) {
+        [arr[i], arr[i+1]] = [arr[i+1], arr[i]];
+        yield { type:'swap', i:i, j:i+1 };
+        sorted = false;
+      }
+    }
+  }
+}
+
+const ALGORITHMS = {
+  bubble:bubbleSort, cocktail:cocktailSort, insertion:insertionSort,
+  selection:selectionSort, shell:shellSort, gnome:gnomeSort,
+  comb:combSort, quick:quickSort, heap:heapSort, oddeven:oddEvenSort
+};
+
+// ——— SCRAMBLE PATTERNS ———
+function doScramble() {
+  const style = CFG.scrambleStyle === 'auto'
+    ? ['random','reverse','wave','interleave','chunks','center'][Math.floor(Math.random() * 6)]
+    : CFG.scrambleStyle;
+
+  const n = elements.length;
+  switch (style) {
+    case 'random':
+      shuffle(elements);
+      break;
+    case 'reverse':
+      elements.reverse();
+      break;
+    case 'wave': {
+      // Sort by sine of sortKey → creates interleaved mess
+      elements.sort((a, b) =>
+        Math.sin(a.sortKey * Math.PI * 5 + 1.3) - Math.sin(b.sortKey * Math.PI * 5 + 1.3));
+      break;
+    }
+    case 'interleave': {
+      const tmp = [...elements];
+      let lo = 0, hi = n - 1, k = 0;
+      while (lo <= hi) {
+        if (lo <= hi) elements[k++] = tmp[lo++];
+        if (lo <= hi) elements[k++] = tmp[hi--];
+      }
+      break;
+    }
+    case 'chunks': {
+      const cs = Math.max(2, Math.floor(n / 7));
+      for (let c = 0; c * cs < n; c++) {
+        const end = Math.min((c + 1) * cs, n);
+        const chunk = elements.slice(c * cs, end);
+        shuffle(chunk);
+        chunk.forEach((el, i) => { elements[c * cs + i] = el; });
+      }
+      break;
+    }
+    case 'center': {
+      // Elements cascade from center outward
+      const tmp = [...elements];
+      const mid = Math.floor(n / 2);
+      let k = 0;
+      for (let d = 0; d <= mid; d++) {
+        if (mid - d >= 0) elements[k++] = tmp[mid - d];
+        if (mid + d + 1 < n) elements[k++] = tmp[mid + d + 1];
+      }
+      break;
+    }
+    default:
+      shuffle(elements);
+  }
+  updateTargetX();
+}
+
+// ═══════════════════════════════════════════════════════
+//  SORT ORCHESTRATION
+// ═══════════════════════════════════════════════════════
+
+function stepInterval() {
+  return CFG.bpmMode
+    ? 60000 / (CFG.bpm * CFG.stepsPerBeat)
+    : 1000  / CFG.stepsPerSec;
+}
+
+function startSort() {
+  clearTimeout(stepTimer);
+  sortGen = null;
+
+  const algoName = pickFromQueue(algoQueue, ALGO_NAMES, CFG.algorithm);
+  currentAlgorithm = algoName;
+  stats = { comparisons: 0, swaps: 0 };
+  phase = 'sorting';
+  setStatus('SORTING', true);
+  updateInfo();
+
+  sortGen = ALGORITHMS[algoName](elements);
+  scheduleStep();
+}
+
+function scheduleStep() {
+  if (CFG.paused) return;
+  stepTimer = setTimeout(doStep, stepInterval());
+}
+
+function doStep() {
+  if (!sortGen || CFG.paused) return;
+  const result = sortGen.next();
+
+  if (result.done) {
+    sortGen = null;
+    phase = 'sorted';
+    setStatus('SORTED', false);
+    celebrate();
+    return;
+  }
+
+  const { type, i, j } = result.value;
+  if (type === 'compare') {
+    stats.comparisons++;
+    elements[i].compareFlash = 1.0;
+    elements[j].compareFlash = 1.0;
+  } else if (type === 'swap') {
+    stats.swaps++;
+    elements[i].swapFlash = 1.0;
+    elements[j].swapFlash = 1.0;
+    updateTargetX();
+  }
+
+  scheduleStep();
+}
+
+function celebrate() {
+  // Golden wave rolls left→right through sorted columns
+  const n = elements.length;
+  for (let i = 0; i < n; i++) {
+    setTimeout(() => { elements[i].swapFlash = 1.6; }, i * 12);
+  }
+  clearTimeout(nextTimer);
+  nextTimer = setTimeout(beginNextRound, Math.max(n * 12 + 900, 1600));
+}
+
+function beginNextRound() {
+  recolor();
+  assignSortKeys();
+  doScramble();
+  phase = 'scrambling';
+  setStatus('SCRAMBLING', true);
+
+  clearTimeout(nextTimer);
+  nextTimer = setTimeout(() => { startSort(); }, 1100);
+}
+
+// ——— UI HELPERS ———
+function setStatus(txt, active) {
+  const el = document.getElementById('status');
+  el.textContent = txt;
+  el.classList.toggle('active', !!active);
+}
+
+function updateInfo() {
+  document.getElementById('infoAlg').textContent = (ALGO_DISPLAY[currentAlgorithm] || '—');
+  document.getElementById('infoKey').textContent = (KEY_DISPLAY[currentSortKey] || '—');
+  document.getElementById('infoPal').textContent = currentPalette.toUpperCase() || '—';
+}
+
+// ═══════════════════════════════════════════════════════
+//  RENDERING
+// ═══════════════════════════════════════════════════════
+
+function resize() {
+  canvas.width  = window.innerWidth;
+  canvas.height = window.innerHeight;
+  updateTargetX();
+}
+
+function drawBar(el) {
+  const step     = canvas.width / CFG.n;
+  const bw       = step * CFG.barFill;
+  const x        = el.currentX + (step - bw) * 0.5;
+  const bh       = canvas.height * CFG.barHeight;
+  const y        = (canvas.height - bh) * 0.5;
+
+  const s        = Math.min(100, el.s * CFG.satBoost);
+  const { h, l } = el;
+
+  // Shimmer: bright band drifts up/down the column
+  const sp       = el.shimmerOffset + time * CFG.shimmerSpeed;
+  const bright   = 0.28 + 0.38 * (Math.sin(sp) * 0.5 + 0.5);
+  const lDark    = Math.max(8,  l - 16);
+  const lPeak    = Math.min(88, l + 20);
+
+  const g = ctx.createLinearGradient(x, y, x, y + bh);
+  g.addColorStop(0,                              `hsl(${h},${s}%,${lDark}%)`);
+  g.addColorStop(Math.max(0.01, bright - 0.14),  `hsl(${h},${s}%,${l}%)`);
+  g.addColorStop(bright,                         `hsl(${h},${s}%,${lPeak}%)`);
+  g.addColorStop(Math.min(0.99, bright + 0.18),  `hsl(${h},${s}%,${l}%)`);
+  g.addColorStop(1,                              `hsl(${h},${s}%,${lDark}%)`);
+
+  // Choose glow based on flash state
+  let glowColor = `hsl(${h},${s}%,${l}%)`;
+  let glowBlur  = CFG.glow * 0.28;
+
+  const cf = el.compareFlash;
+  const sf = el.swapFlash;
+
+  if (cf > 0.05) {
+    glowColor = `rgba(200,225,255,${(cf * 0.9).toFixed(2)})`;
+    glowBlur  = CFG.glow * 0.9 * cf;
+  }
+  if (sf > 0.05) {
+    const sf1 = Math.min(1, sf);
+    glowColor = `rgba(255,205,70,${sf1.toFixed(2)})`;
+    glowBlur  = CFG.glow * 1.3 * sf1;
+  }
+
+  ctx.save();
+  ctx.shadowColor = glowColor;
+  ctx.shadowBlur  = glowBlur;
+  ctx.fillStyle   = g;
+  ctx.fillRect(x, y, bw, bh);
+  ctx.restore();
+}
+
+function drawLabels() {
+  if (!CFG.showLabels) return;
+  const panelOpen = document.getElementById('panel').classList.contains('open');
+  const rightEdge = panelOpen ? canvas.width - 326 : canvas.width - 16;
+  const baseY     = canvas.height - 16;
+
+  ctx.save();
+  ctx.font      = '11px "Share Tech Mono", monospace';
+  ctx.fillStyle = 'rgba(155,180,220,0.32)';
+  ctx.textAlign = 'center';
+  ctx.fillText(ALGO_DISPLAY[currentAlgorithm] || '', canvas.width * 0.5, baseY);
+
+  ctx.textAlign = 'right';
+  ctx.fillStyle = 'rgba(110,145,190,0.22)';
+  ctx.fillText(
+    `${(KEY_DISPLAY[currentSortKey] || '').padEnd(14)} ${currentPalette.toUpperCase()}`,
+    rightEdge, baseY
+  );
+  ctx.restore();
+}
+
+function drawProgress() {
+  // Thin accent scan line at top showing approximate frontier
+  if (phase !== 'sorting' || !elements.length) return;
+  const step = barStep();
+  // Find leftmost un-settled element (rough proxy for scan head)
+  let frontier = 0;
+  for (let i = 0; i < elements.length; i++) {
+    if (elements[i].compareFlash > 0.3 || elements[i].swapFlash > 0.3) {
+      frontier = i * step;
+      break;
+    }
+  }
+  if (frontier === 0) return;
+  const prog = Math.min(1, frontier / canvas.width);
+  ctx.save();
+  ctx.fillStyle = 'rgba(80,160,255,0.12)';
+  ctx.fillRect(0, 0, canvas.width * prog, 2);
+  ctx.fillStyle = 'rgba(120,200,255,0.55)';
+  ctx.fillRect(canvas.width * prog - 2, 0, 4, 2);
+  ctx.restore();
+}
+
+function draw() {
+  // Background
+  ctx.fillStyle = '#020208';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  // Subtle radial bloom in center
+  const rad = ctx.createRadialGradient(
+    canvas.width * 0.5, canvas.height * 0.5, 0,
+    canvas.width * 0.5, canvas.height * 0.5, canvas.width * 0.65
+  );
+  rad.addColorStop(0, 'rgba(14,16,32,0.7)');
+  rad.addColorStop(1, 'rgba(2,2,8,0.0)');
+  ctx.fillStyle = rad;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  // Draw elements (sort by currentX so overlapping lerps look right)
+  const sorted = [...elements].sort((a, b) => a.currentX - b.currentX);
+  sorted.forEach(drawBar);
+
+  drawProgress();
+  drawLabels();
+
+  // Stats HUD
+  if (CFG.showStats) {
+    document.getElementById('stats').innerHTML =
+      `CMP &nbsp;${stats.comparisons.toLocaleString()}<br>SWP &nbsp;${stats.swaps.toLocaleString()}`;
+  } else {
+    document.getElementById('stats').innerHTML = '';
+  }
+}
+
+// ——— ANIMATION LOOP ———
+function loop() {
+  time += 0.016;
+
+  elements.forEach(el => {
+    el.currentX     += (el.targetX - el.currentX) * CFG.lerpSpeed;
+    el.compareFlash *= 0.80;
+    el.swapFlash    *= 0.87;
+  });
+
+  draw();
+  requestAnimationFrame(loop);
+}
+
+// ——— INIT ———
+function init() {
+  resize();
+  createElements();
+  updateInfo();
+  setTimeout(() => { startSort(); }, 500);
+  loop();
+}
+
+// ═══════════════════════════════════════════════════════
+//  UI EVENT BINDINGS
+// ═══════════════════════════════════════════════════════
+
+document.getElementById('tab').addEventListener('click', () => {
+  document.getElementById('panel').classList.toggle('open');
+});
+
+document.getElementById('playBtn').addEventListener('click', () => {
+  CFG.paused = !CFG.paused;
+  document.getElementById('playBtn').textContent = CFG.paused ? '▶ RESUME' : '⏸ PAUSE';
+  if (!CFG.paused && sortGen) scheduleStep();
+  if (!CFG.paused && phase === 'sorted') celebrate();
+});
+
+document.getElementById('bpmMode').addEventListener('change', e => {
+  CFG.bpmMode = e.target.checked;
+  document.getElementById('bpmControls').style.display  = CFG.bpmMode ? 'block' : 'none';
+  document.getElementById('speedControls').style.display = CFG.bpmMode ? 'none'  : 'block';
+});
+
+document.getElementById('bpmVal').addEventListener('input', e => {
+  CFG.bpm = Math.max(40, Math.min(300, parseFloat(e.target.value) || 120));
+});
+
+document.getElementById('stepsPerBeat').addEventListener('change', e => {
+  CFG.stepsPerBeat = parseInt(e.target.value);
+});
+
+// Tap tempo
+document.getElementById('tapBtn').addEventListener('click', () => {
+  const now = performance.now();
+  tapTimes.push(now);
+  if (tapTimes.length > 8) tapTimes.shift();
+  if (tapTimes.length >= 2) {
+    let sum = 0;
+    for (let i = 1; i < tapTimes.length; i++) sum += tapTimes[i] - tapTimes[i-1];
+    const avg = sum / (tapTimes.length - 1);
+    CFG.bpm = Math.round(Math.max(40, Math.min(300, 60000 / avg)));
+    document.getElementById('bpmVal').value = CFG.bpm;
+  }
+});
+
+document.getElementById('speed').addEventListener('input', e => {
+  CFG.stepsPerSec = parseInt(e.target.value);
+  document.getElementById('speedVal').textContent = e.target.value;
+});
+
+document.getElementById('colCount').addEventListener('change', e => {
+  CFG.n = parseInt(e.target.value);
+  createElements();
+  startSort();
+});
+
+// Slider bindings: [id, display id, setter, formatter]
+const sliders = [
+  ['glow',      'glowVal',      v => { CFG.glow = v; },                         v => Math.round(v)],
+  ['shimmer',   'shimmerVal',   v => { CFG.shimmerSpeed = v / 100; },            v => (v/100).toFixed(2)],
+  ['lerpSpeed', 'lerpVal',      v => { CFG.lerpSpeed = v / 100; },              v => (v/100).toFixed(2)],
+  ['barFill',   'fillVal',      v => { CFG.barFill = v / 100; },                v => Math.round(v) + '%'],
+  ['barHeight', 'barHVal',      v => { CFG.barHeight = v / 100; },              v => Math.round(v) + '%'],
+  ['satBoost',  'satVal',       v => { CFG.satBoost = v / 100; },               v => Math.round(v) + '%'],
+  ['lightness', 'lightnessVal', v => { CFG.baseLightness = v; },                v => Math.round(v)],
+  ['lrange',    'lrangeVal',    v => { CFG.lightnessRange = v; },               v => Math.round(v)],
+];
+
+sliders.forEach(([id, valId, setter, fmt]) => {
+  document.getElementById(id).addEventListener('input', e => {
+    const v = parseFloat(e.target.value);
+    setter(v);
+    document.getElementById(valId).textContent = fmt(v);
+  });
+});
+
+document.getElementById('showStats').addEventListener('change', e => { CFG.showStats = e.target.checked; });
+document.getElementById('showLabels').addEventListener('change', e => { CFG.showLabels = e.target.checked; });
+
+document.getElementById('algorithm').addEventListener('change', e => {
+  CFG.algorithm = e.target.value;
+  algoQueue = []; // reset queue on manual selection
+});
+document.getElementById('sortKey').addEventListener('change', e => {
+  CFG.sortKey = e.target.value;
+  keyQueue = [];
+});
+document.getElementById('paletteTheme').addEventListener('change', e => { CFG.paletteTheme = e.target.value; });
+document.getElementById('scrambleStyle').addEventListener('change', e => { CFG.scrambleStyle = e.target.value; });
+
+document.getElementById('scrambleBtn').addEventListener('click', () => {
+  clearTimeout(stepTimer);
+  clearTimeout(nextTimer);
+  sortGen = null;
+  recolor();
+  assignSortKeys();
+  doScramble();
+  updateInfo();
+  phase = 'scrambling';
+  setStatus('SCRAMBLING', true);
+  clearTimeout(nextTimer);
+  nextTimer = setTimeout(() => { startSort(); }, 1100);
+});
+
+window.addEventListener('resize', () => {
+  resize();
+  elements.forEach(el => { el.currentX = el.targetX; });
+});
+
+// ——— GO ———
+init();
+</script>
+</body>
+</html>
